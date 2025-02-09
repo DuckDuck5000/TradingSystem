@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Domain.Factories;
-using Domain.Services;
+using Confluent.Kafka;
+using System.Text.Json;
+using Domain.Services; 
 using API.DTOs;
 using Domain.Enums;
-using System.Text.Json.Serialization; // Ensure this is added
-
 
 namespace API.Controllers
 {
@@ -12,146 +11,172 @@ namespace API.Controllers
     [Route("api/[controller]")]
     public class OrdersController : ControllerBase
     {
-        private readonly MatchingEngine _matchingEngine;
+        private readonly IProducer<Null, string> _producer;
+        private readonly MatchingEngine _matchingEngine; // if you're still using it for GET endpoints
 
-        public OrdersController(MatchingEngine matchingEngine)
+        // This constructor requires a Kafka producer and optionally the matching engine
+        public OrdersController(
+            IProducer<Null, string> producer,
+            MatchingEngine matchingEngine // optional if you want to handle GET/cancel here
+        )
         {
+            _producer = producer;
             _matchingEngine = matchingEngine;
         }
 
+        // ---------------------------
+        // 1) Limit Order (produces to Kafka)
+        // ---------------------------
         [HttpPost("limit")]
-        public IActionResult CreateLimitOrder([FromBody] CreateLimitOrderDto dto)
+        public async Task<IActionResult> CreateLimitOrder([FromBody] CreateLimitOrderDto dto)
         {
-
-            // 1. Create the domain order via the factory
-            var order = OrderFactory.CreateLimitOrder(
-                dto.InstrumentId, 
-                dto.Side, 
-                dto.Price, 
-                dto.Quantity
-            );
-
-            // 2. Process it in the matching engine
-            var trades = _matchingEngine.Process(order);
-
-            // 3. Return a response
-            //    Typically you’d return the created order info + any resulting trades
-            return Ok(new
+            // Convert DTO -> message object
+            var orderMessage = new OrderMessage
             {
-                orderId = order.OrderId,
-                instrumentId = order.InstrumentId,
-                status = order.Status.ToString(),
-                trades = trades.Select(t => new 
-                {
-                    t.TradeId,
-                    t.Price,
-                    t.Quantity,
-                    t.ExecutedAt
-                })
+                OrderId = Guid.NewGuid(),
+                InstrumentId = dto.InstrumentId,
+                Side = dto.Side,      // "Buy" or "Sell"
+                Price = dto.Price,
+                Quantity = dto.Quantity
+            };
+
+            // Serialize to JSON
+            var json = JsonSerializer.Serialize(orderMessage);
+
+            // Produce the message to "orders" topic in Kafka
+            await _producer.ProduceAsync("orders", new Message<Null, string> { Value = json });
+
+            // Return a simple acknowledgment
+            return Ok(new {
+                message = "Limit order submitted to Kafka",
+                orderId = orderMessage.OrderId
             });
         }
 
-
-
+        // ---------------------------
+        // 2) Market Order (produces to Kafka)
+        // ---------------------------
         [HttpPost("market")]
-        public IActionResult CreateMarketOrder([FromBody] CreateMarketOrderDto dto)
+        public async Task<IActionResult> CreateMarketOrder([FromBody] CreateMarketOrderDto dto)
         {
-
-            var order = OrderFactory.CreateMarketOrder(
-                dto.InstrumentId, 
-                dto.Side, 
-                dto.Quantity
-            );
-            
-            var trades = _matchingEngine.Process(order);
-
-            return Ok(new
+            // Convert DTO -> message object
+            var orderMessage = new OrderMessage
             {
-                orderId = order.OrderId,
-                instrumentId = order.InstrumentId,
-                status = order.Status.ToString(),
-                trades = trades.Select(t => new 
-                {
-                    t.TradeId,
-                    t.Price,
-                    t.Quantity,
-                    t.ExecutedAt
-                })
+                OrderId = Guid.NewGuid(),
+                InstrumentId = dto.InstrumentId,
+                Side = dto.Side,      // "Buy" or "Sell"
+                Price = 0, 
+                Quantity = dto.Quantity
+            };
+
+            var json = JsonSerializer.Serialize(orderMessage);
+
+            // Produce the message to "orders" topic
+            await _producer.ProduceAsync("orders", new Message<Null, string> { Value = json });
+
+
+            return Ok(new {
+                message = "Market order submitted to Kafka",
+                orderId = orderMessage.OrderId
             });
         }
-        
 
-        // Optionally GET an order by ID, though we might not have persistence set up yet
-   [HttpGet("{orderId}")]
-public IActionResult GetOrder(Guid orderId)
-{
-    // If you have in-memory orders, you'd query the matching engine’s order book.
-    // Or, if you have a repository (IOrderRepository), you'd do something like:
-    // var order = _orderRepository.GetById(orderId);
-    
-    // For a pure in-memory approach, you might have a method in your matching engine:
-    var order = _matchingEngine.GetOrder(orderId);
+        // ---------------------------
+        // 3) GET an order by ID
+        //     - If you're still using the in-memory matching engine
+        // ---------------------------
+        [HttpGet("{orderId}")]
+        public IActionResult GetOrder(Guid orderId)
+        {
+            // This only works if your matching engine is in the same process
+            // and you're storing the orders in memory.
+            var order = _matchingEngine.GetOrder(orderId);
+            if (order == null) return NotFound();
 
-    if (order == null)
-        return NotFound();
+            return Ok(new {
+                order.OrderId,
+                order.InstrumentId,
+                order.Status,
+                order.Price,
+                order.Quantity,
+                order.FilledQuantity
+            });
+        }
 
-    return Ok(new {
-        order.OrderId,
-        order.InstrumentId,
-        order.Status,
-        order.Price,
-        order.Quantity,
-        order.FilledQuantity
-        // ...
-    });
-}
+        // ---------------------------
+        // 4) Cancel an Order
+        //     - This still calls matchingEngine directly
+        //     - In a fully decoupled approach, you'd produce a "Cancel" event to Kafka
+        // ---------------------------
+        [HttpPost("{orderId}/cancel")]
+        public IActionResult CancelOrder(Guid orderId)
+        {
+            var order = _matchingEngine.GetOrder(orderId);
+            if (order == null) return NotFound();
 
-   [HttpPost("{orderId}/cancel")]
-public IActionResult CancelOrder(Guid orderId)
-{
-    // You might look up the order in the matching engine or repository:
-    var order = _matchingEngine.GetOrder(orderId);
+            if (order.Status == OrderStatus.Filled || order.Status == OrderStatus.Canceled)
+            {
+                return BadRequest(new { message = "Order is already filled or canceled." });
+            }
 
-    if (order == null) 
-        return NotFound();
+            // Should be on kafka too.....
+            _matchingEngine.CancelOrder(orderId);
 
-    if (order.Status == OrderStatus.Filled || order.Status == OrderStatus.Canceled)
-    {
-        return BadRequest(new { message = "Order is already filled or canceled." });
+            return Ok(new { message = "Order canceled.", orderId });
+        }
+
+        // ---------------------------
+        // 5) Get Order Book
+        // ---------------------------
+        [HttpGet("orderbook/{instrumentId}")]
+        public IActionResult GetOrderBook(string instrumentId)
+        {
+            var snapshot = _matchingEngine.GetOrderBookSnapshot(instrumentId);
+            if (snapshot == null) return NotFound("Instrument not found");
+            return Ok(snapshot);
+        }
+
+        // ---------------------------
+        // 6) Get Trades
+        // ---------------------------
+        [HttpGet("trades")]
+        public IActionResult GetTrades(string instrumentId)
+        {
+            var trades = _matchingEngine.GetAllTrades(instrumentId);
+            return Ok(trades.Select(t => new {
+                t.TradeId,
+                t.BuyOrderId,
+                t.SellOrderId,
+                t.InstrumentId,
+                t.Price,
+                t.Quantity,
+                t.ExecutedAt
+            }));
+        }
     }
 
-    _matchingEngine.CancelOrder(orderId);
+    public class CreateLimitOrderDto
+    {
+        public string InstrumentId { get; set; }
+        public string Side { get; set; }  // "Buy" or "Sell"
+        public decimal Price { get; set; }
+        public decimal Quantity { get; set; }
+    }
 
-    return Ok(new { message = "Order canceled.", orderId = orderId });
-}
+    public class CreateMarketOrderDto
+    {
+        public string InstrumentId { get; set; }
+        public string Side { get; set; }  // "Buy" or "Sell"
+        public decimal Quantity { get; set; }
+    }
 
-[HttpGet("orderbook/{instrumentId}")]
-public IActionResult GetOrderBook(string instrumentId)
-{
-    var snapshot = _matchingEngine.GetOrderBookSnapshot(instrumentId);
-    if (snapshot == null) 
-        return NotFound("Instrument not found");
-
-    return Ok(snapshot);
-}
-
-[HttpGet("trades")]
-public IActionResult GetTrades(string instrumentId)
-{
-    // If you store trades in memory or a DB, fetch them here.
-    // If instrumentId is provided, filter on that. Otherwise return all.
-    var trades = _matchingEngine.GetAllTrades(instrumentId);
-
-    return Ok(trades.Select(t => new {
-        t.TradeId,
-        t.BuyOrderId,
-        t.SellOrderId,
-        t.InstrumentId,
-        t.Price,
-        t.Quantity,
-        t.ExecutedAt
-    }));
-}
-
+    // The message shape for Kafka
+    public class OrderMessage
+    {
+        public Guid OrderId { get; set; }
+        public string InstrumentId { get; set; }
+        public string Side { get; set; }
+        public decimal Price { get; set; }
+        public decimal Quantity { get; set; }
     }
 }
