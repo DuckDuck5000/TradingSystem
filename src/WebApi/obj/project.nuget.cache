@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "lWs/lfbw5wM=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\cdrec\\TradingSystem\\src\\WebApi\\WebApi.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\cdrec\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.1\\microsoft.aspnetcore.openapi.9.0.1.nupkg.sha512",
+    "C:\\Users\\cdrec\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}

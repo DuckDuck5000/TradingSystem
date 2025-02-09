@@ -1,0 +1,55 @@
+@WebApi_HostAddress = https://localhost:5265
+
+###
+# GET the WeatherForecast endpoint (from your minimal API)
+GET {{WebApi_HostAddress}}/weatherforecast
+Accept: application/json
+
+###
+# POST a Limit Order
+# This endpoint creates a limit order.
+POST {{WebApi_HostAddress}}/api/orders/limit
+Content-Type: application/json
+
+{
+  "instrumentId": "MSFT",
+  "side": "Buy",
+  "price": 250.50,
+  "quantity": 100
+}
+
+###
+# POST a Market Order
+# This endpoint creates a market order.
+POST {{WebApi_HostAddress}}/api/orders/market
+Content-Type: application/json
+
+{
+  "instrumentId": "MSFT",
+  "side": "Sell",
+  "quantity": 50
+}
+
+###
+# GET an Order by ID
+# Replace {orderId} with an actual order GUID returned from one of the create order endpoints.
+GET {{WebApi_HostAddress}}/api/orders/{orderId}
+Accept: application/json
+
+###
+# POST to Cancel an Order
+# Replace {orderId} with the actual order ID you wish to cancel.
+POST {{WebApi_HostAddress}}/api/orders/{orderId}/cancel
+Content-Type: application/json
+
+{}
+
+###
+# GET the Order Book for a given instrument
+GET {{WebApi_HostAddress}}/api/orders/orderbook/MSFT
+Accept: application/json
+
+###
+# GET Trades for a given instrument
+GET {{WebApi_HostAddress}}/api/orders/trades?instrumentId=MSFT
+Accept: application/json
