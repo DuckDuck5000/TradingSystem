@@ -16,24 +16,26 @@ Messaging Components: For event publishing (e.g., RabbitMQ, Kafka).
 WebApi
 Hosts the ASP.NET Core API:
 
-Order Controllers: For submitting and managing orders.
-Program Startup Configuration: Sets up the API endpoints and middleware.
-Key Features
-Domain Model
-Entities & Enums:
+##Order Controllers: For submitting and managing orders.
+#Program Startup Configuration: Sets up the API endpoints and middleware.
+#Key Features
+#Domain Model
+#Entities & Enums:
 Define core entities like Order and Trade, along with enumerations for order attributes.
 Matching Engine:
 Implements the in-memory order book and matching logic, processing both limit and market orders.
-API Endpoints
-Submit Orders:
-POST /api/orders/limit — Submit a limit order.
-POST /api/orders/market — Submit a market order.
-Order Book & Trades (Optional):
-GET /api/orderbook/{instrumentId} — Retrieve the top levels of the order book.
-GET /api/trades/{instrumentId} — List recent trades.
-Order Management:
-GET /api/orders/{orderId} — Retrieve an order by its ID.
-POST /api/orders/{orderId}/cancel — Cancel an existing order.
+##API Endpoints
+###Submit Orders:
+#POST /api/orders/limit — Submit a limit order.
+#POST /api/orders/market — Submit a market order.
+###Order Book & Trades (Optional):
+#GET /api/orderbook/{instrumentId} — Retrieve the top levels of the order book.
+#GET /api/trades/{instrumentId} — List recent trades.
+##Order Management:
+#GET /api/orders/{orderId} — Retrieve an order by its ID.
+#POST /api/orders/{orderId}/cancel — Cancel an existing order.
+
+
 Persistence Layer
 In-Memory Storage:
 Begin with a simple in-memory store for orders and trades.
