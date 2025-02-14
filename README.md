@@ -33,9 +33,15 @@ Hosts the ASP.NET Core API:
 #### Entities & Enums  
 Define core entities like `Order` and `Trade`, along with enumerations for order attributes.
 
-#### Matching Engine  
+#### Matching Engine  (Deprecated)
 Implements the in-memory order book and matching logic, processing both limit and market orders.
-
+### Infrastructure  
+Handles data access and messaging:
+- **Data Persistence**: EF Core for SQL, NoSQL, or simple in-memory storage.
+- **Messaging Components**: For event publishing (e.g., RabbitMQ, Kafka).
+#### Consumer
+ Handles order consumption and processing
+ 
 ---
 
 ## API Endpoints  
@@ -136,3 +142,11 @@ Create a `.NET 9` solution with the following projects:
 ## Conclusion  
 
 This order matching system is designed to be **modular, scalable, and extendable**. It provides a solid foundation for building a **full-featured trading platform**—from a simple in-memory prototype to a production-ready system with real-time analytics and advanced trading features.
+
+
+## Future Improvements
+
+- **Stock Information**: Fetch and display stock price data for different instruments.  
+- **Login System**: Implement user authentication to track and view trade history.  
+- **Trading Dashboard**: Enhance the UI for real-time visualization of trades and order book updates.  
+
