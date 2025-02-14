@@ -148,5 +148,5 @@ This order matching system is designed to be **modular, scalable, and extendable
 
 - **Stock Information**: Fetch and display stock price data for different instruments.  
 - **Login System**: Implement user authentication to track and view trade history.  
-- **Trading Dashboard**: Enhance the UI for real-time visualization of trades and order book updates.  
-
+- **Trading Dashboard**: Enhance the UI for real-time visualization of trades and order book updates.
+- **Scalability, Automation, Logging**: in case that this is widely used, ha.
