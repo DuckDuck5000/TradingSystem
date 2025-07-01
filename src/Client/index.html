@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trading System Client</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        form { margin-bottom: 1.5rem; }
+        input, select { margin-right: 0.5rem; }
+        table { border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ccc; padding: 0.25rem 0.5rem; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const apiBase = "http://localhost:5000";
+function App() {
+  const [limitOrder, setLimitOrder] = React.useState({instrumentId:'', side:'Buy', price:'', quantity:''});
+  const [marketOrder, setMarketOrder] = React.useState({instrumentId:'', side:'Buy', quantity:''});
+  const [message, setMessage] = React.useState('');
+  const [instrument, setInstrument] = React.useState('');
+  const [orderBook, setOrderBook] = React.useState(null);
+  const [trades, setTrades] = React.useState([]);
+
+  const handleLimitSubmit = async e => {
+    e.preventDefault();
+    const res = await fetch(`${apiBase}/api/orders/limit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(limitOrder)
+    });
+    const data = await res.json();
+    setMessage(data.message || 'Limit order submitted');
+  };
+
+  const handleMarketSubmit = async e => {
+    e.preventDefault();
+    const res = await fetch(`${apiBase}/api/orders/market`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(marketOrder)
+    });
+    const data = await res.json();
+    setMessage(data.message || 'Market order submitted');
+  };
+
+  const loadBook = async () => {
+    if(!instrument) return;
+    const bookRes = await fetch(`${apiBase}/api/orders/orderbook/${instrument}`);
+    if(bookRes.ok) setOrderBook(await bookRes.json());
+    const tradesRes = await fetch(`${apiBase}/api/orders/trades?instrumentId=${instrument}`);
+    if(tradesRes.ok) setTrades(await tradesRes.json());
+  };
+
+  return (
+    <div>
+      <h1>Trading System Client</h1>
+      {message && <p>{message}</p>}
+
+      <h2>Submit Limit Order</h2>
+      <form onSubmit={handleLimitSubmit}>
+        <input placeholder="Instrument" value={limitOrder.instrumentId} onChange={e=>setLimitOrder({...limitOrder,instrumentId:e.target.value})} required />
+        <select value={limitOrder.side} onChange={e=>setLimitOrder({...limitOrder,side:e.target.value})}>
+          <option>Buy</option>
+          <option>Sell</option>
+        </select>
+        <input type="number" step="0.01" placeholder="Price" value={limitOrder.price} onChange={e=>setLimitOrder({...limitOrder,price:e.target.value})} required />
+        <input type="number" step="0.01" placeholder="Qty" value={limitOrder.quantity} onChange={e=>setLimitOrder({...limitOrder,quantity:e.target.value})} required />
+        <button type="submit">Send</button>
+      </form>
+
+      <h2>Submit Market Order</h2>
+      <form onSubmit={handleMarketSubmit}>
+        <input placeholder="Instrument" value={marketOrder.instrumentId} onChange={e=>setMarketOrder({...marketOrder,instrumentId:e.target.value})} required />
+        <select value={marketOrder.side} onChange={e=>setMarketOrder({...marketOrder,side:e.target.value})}>
+          <option>Buy</option>
+          <option>Sell</option>
+        </select>
+        <input type="number" step="0.01" placeholder="Qty" value={marketOrder.quantity} onChange={e=>setMarketOrder({...marketOrder,quantity:e.target.value})} required />
+        <button type="submit">Send</button>
+      </form>
+
+      <h2>Order Book & Trades</h2>
+      <div>
+        <input placeholder="Instrument" value={instrument} onChange={e=>setInstrument(e.target.value)} />
+        <button onClick={loadBook}>Load</button>
+      </div>
+
+      {orderBook && (
+        <div>
+          <h3>Order Book</h3>
+          <table>
+            <thead><tr><th>Side</th><th>Price</th><th>Qty</th></tr></thead>
+            <tbody>
+              {orderBook.bids.map((b,i)=>(<tr key={'b'+i}><td>Buy</td><td>{b.price}</td><td>{b.quantity}</td></tr>))}
+              {orderBook.asks.map((a,i)=>(<tr key={'a'+i}><td>Sell</td><td>{a.price}</td><td>{a.quantity}</td></tr>))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {trades.length > 0 && (
+        <div>
+          <h3>Trades</h3>
+          <table>
+            <thead><tr><th>Price</th><th>Qty</th><th>Time</th></tr></thead>
+            <tbody>
+              {trades.map((t,i)=>(<tr key={i}><td>{t.price}</td><td>{t.quantity}</td><td>{t.executedAt}</td></tr>))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
