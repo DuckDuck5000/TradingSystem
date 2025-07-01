@@ -18,11 +18,15 @@ Handles data access and messaging:
 - **Data Persistence**: EF Core for SQL, NoSQL, or simple in-memory storage.
 - **Messaging Components**: For event publishing (e.g., RabbitMQ, Kafka).
 
-### Web API  
+### Web API
 Hosts the ASP.NET Core API:
 
 - **Order Controllers**: For submitting and managing orders.
 - **Program Startup Configuration**: Sets up the API endpoints and middleware.
+
+### Client
+A lightweight React front end for submitting orders and viewing the order book
+and trade history.
 
 ---
 
@@ -150,3 +154,21 @@ This order matching system is designed to be **modular, scalable, and extendable
 - **Login System**: Implement user authentication to track and view trade history.  
 - **Trading Dashboard**: Enhance the UI for real-time visualization of trades and order book updates.
 - **Scalability, Automation, Logging**: in case that this is widely used, ha.
+
+## Running the Client UI
+
+1. Start the API:
+   ```bash
+   dotnet run --project src/WebApi
+   ```
+   The API listens on `http://localhost:5000` by default.
+
+2. Open the client:
+   - Serve the static files in `src/Client` using any web server, e.g.
+     ```bash
+     npx serve src/Client
+     ```
+   - Alternatively, open `src/Client/index.html` directly in your browser.
+
+Use the forms on the page to submit limit or market orders and to view the
+current order book and trade history.
